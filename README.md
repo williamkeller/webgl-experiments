@@ -1,6 +1,9 @@
 # WebGL experiments
 
-Dipping my toes into the WebGL world. I am (mostly, kinda) following a
-Youtube series at https://www.youtube.com/channel/UCufDmM2MGQlbfS3luzgVDxw, 
-but adding some better code organization as I go.
+Dipping my toes into the WebGL world.
+<br/>
+<br/>
+Live versions of the experiments is hosted at
+<a href="http://williamkeller.github.io/webgl-experiments></a>
+
 
