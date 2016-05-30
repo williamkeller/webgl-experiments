@@ -12,6 +12,14 @@ var UTIL = (function() {
               " " + error, null);
         }
       });
+    },
+
+    load_image: function(url, callback) {
+      var image = new Image();
+      image.onload = function() {
+        callback("Success", image);
+      };
+      image.src = url;
     }
   }
 })();

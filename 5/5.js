@@ -15,6 +15,10 @@ var APP = (function() {
 
   var cubeIndices;
 
+  var vertices;
+  var indices;
+  var texcoords;
+  var image;
 
   function init_gl() {
     var canvas = document.getElementById("glcanvas");
@@ -27,33 +31,44 @@ var APP = (function() {
 
 
   function load_resources(callback) {
+    var resource_count = 4;
+
+    var loaded = function() {
+      resource_count -= 1;
+      if(resource_count == 0)
+        callback();
+    }
+
     UTIL.load_resource("5.vs", function(msg, data) {
       if(data == null)
         console.log(msg);
-      SHADERS.vertex = data;
+      else {
+        SHADERS.vertex = data;
+        loaded();
+      }
     });
     UTIL.load_resource("5.fs", function(msg, data) {
       if(data == null)
         console.log(msg);
-      SHADERS.fragment = data;
-    });
-
-    var tries = 6;
-    var timer = function() {
-      tries -= 1;
-      if(tries < 1) {
-        console.log("Timed out waiting for resources");
-      }
       else {
-        if(SHADERS.vertex == null || SHADERS.fragment == null)
-          setTimeout(timer, 500);
-        else {
-          console.log("Everything loaded!");
-          callback();
-        }
+        SHADERS.fragment = data;
+        loaded();
       }
-    }
-    setTimeout(timer, 500);
+    });
+    UTIL.load_resource("ironman.json", function(msg, data) {
+      if(data == null)
+        console.log(msg);
+      else {
+        vertices = data.meshes[0].vertices;
+        indices = [].concat.apply([], data.meshes[0].faces);
+        texcoords = data.meshes[0].texturecoords[0];
+        loaded();
+      }
+    });
+    UTIL.load_image("ironman.png", function(msg, data) {
+      image = data;
+      loaded();
+    });
   }
 
 
@@ -99,77 +114,33 @@ var APP = (function() {
   }
 
 
-  function setupGeometry() {
-    var cubeVerts = [
-			-1.0, 1.0, -1.0,    0.0, 0.0,
-			-1.0, 1.0, 1.0,     0.0, 1.0,
-			1.0, 1.0, 1.0,      1.0, 1.0,
-			1.0, 1.0, -1.0,     1.0, 0.0,
+  function setupGeometry(vertices, indices, texcoords) {
 
-			// Left
- 			-1.0, 1.0, 1.0,     1.0, 1.0,
- 			-1.0, -1.0, 1.0,    0.0, 1.0,
- 			-1.0, -1.0, -1.0,   0.0, 0.0,
- 			-1.0, 1.0, -1.0,    1.0, 0.0,
- 
-			// Right
-			1.0, 1.0, 1.0,      1.0, 1.0,
-			1.0, -1.0, 1.0,     0.0, 1.0,
-			1.0, -1.0, -1.0,    0.0, 0.0,
-			1.0, 1.0, -1.0,     1.0, 0.0,
-
-			// Front
-			1.0, 1.0, 1.0,      1.0, 1.0,
-			1.0, -1.0, 1.0,     1.0, 0.0,
-			-1.0, -1.0, 1.0,    0.0, 0.0,
-			-1.0, 1.0, 1.0,     0.0, 1.0,
-
-			// Back
-			1.0, 1.0, -1.0,     1.0, 1.0,
-			1.0, -1.0, -1.0,    1.0, 0.0,
-			-1.0, -1.0, -1.0,   0.0, 0.0,
-			-1.0, 1.0, -1.0,    0.0, 1.0,
-
-			// Bottom
-			-1.0, -1.0, -1.0,   0.0, 0.0,
-			-1.0, -1.0, 1.0,    0.0, 1.0,
-			1.0, -1.0, 1.0,     1.0, 1.0,
-			1.0, -1.0, -1.0,    1.0, 0.0,
-    ]
-
-		cubeIndices = [
-			// Top
-			0, 1, 2,
-			0, 2, 3,
-
-			// Left
-			5, 4, 6,
-			6, 4, 7,
-
-			// Right
-			8, 9, 10,
-			8, 10, 11,
-
-			// Front
-			13, 12, 14,
-			15, 14, 12,
-
-			// Back
-			16, 17, 18,
-			16, 18, 19,
-
-			// Bottom
-			21, 20, 22,
-			22, 20, 23
-		];
-
+    // vertex data
     var vbo = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeVerts), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    
+    var vPosLoc = gl.getAttribLocation(program, "vPos");
+    gl.vertexAttribPointer(vPosLoc, 3, gl.FLOAT, gl.FALSE, 
+        3 * Float32Array.BYTES_PER_ELEMENT, 0);
+    gl.enableVertexAttribArray(vPosLoc);
+    
 
+    // index data
 		var ibo = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeIndices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+    // texture data
+    var tbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tbo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texcoords), gl.STATIC_DRAW);
+
+    var vTexCoordLoc = gl.getAttribLocation(program, "vTexCoord");
+    gl.vertexAttribPointer(vTexCoordLoc, 2, gl.FLOAT, gl.FALSE, 
+        2 * Float32Array.BYTES_PER_ELEMENT, 0);
+    gl.enableVertexAttribArray(vTexCoordLoc);
 
     var texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -177,22 +148,15 @@ var APP = (function() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, 
-        document.getElementById("crate-texture"));
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image); 
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.activeTexture(gl.TEXTURE0);
 
-    var vPosLoc = gl.getAttribLocation(program, "vPos");
-    gl.vertexAttribPointer(vPosLoc, 3, gl.FLOAT, gl.FALSE, 
-        5 * Float32Array.BYTES_PER_ELEMENT, 0);
-    gl.enableVertexAttribArray(vPosLoc);
 
-    var vTexCoordLoc = gl.getAttribLocation(program, "vTexCoord");
-    gl.vertexAttribPointer(vTexCoordLoc, 2, gl.FLOAT, gl.FALSE, 
-        5 * Float32Array.BYTES_PER_ELEMENT, 3 * Float32Array.BYTES_PER_ELEMENT);
-    gl.enableVertexAttribArray(vTexCoordLoc);
 
+    // matrix data
     mWorldULoc = gl.getUniformLocation(program, "mWorld");
     mWorld = new Float32Array(16);
     mat4.identity(mWorld);
@@ -200,7 +164,7 @@ var APP = (function() {
 
     var mViewULoc = gl.getUniformLocation(program, "mView");
     mView = new Float32Array(16);
-    mat4.lookAt(mView, [0.0, 0.0, -8.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+    mat4.lookAt(mView, [0.0, 3.0, -2.5], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]);
     gl.uniformMatrix4fv(mViewULoc, gl.FALSE, mView);
 
     var mProjectionULoc = gl.getUniformLocation(program, "mProjection");
@@ -215,10 +179,10 @@ var APP = (function() {
   mat4.identity(identityMatrix);
 
   function draw(angle) {
-    mat4.rotate(mWorld, identityMatrix, angle, [1, 1, 0]);
-    mat4.rotate(mWorld, mWorld, angle * 1.25, [1, 0, 0]);
+    mat4.rotate(mWorld, identityMatrix, glMatrix.toRadian(90.0), [-1, 0, 0]);
+    mat4.rotate(mWorld, mWorld, angle, [0, 0, 1]);
     gl.uniformMatrix4fv(mWorldULoc, gl.FALSE, mWorld);
-    gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_SHORT, 0);
+    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
   }
 
 
@@ -244,7 +208,7 @@ var APP = (function() {
         init_gl();
 
         loadShaderProgram();
-        setupGeometry();
+        setupGeometry(vertices, indices, texcoords);
 
         run_loop();
       });
