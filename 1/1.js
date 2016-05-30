@@ -98,8 +98,10 @@ var APP = (function() {
     init: function(id) {
       var canvas = document.getElementById(id);
 
-      gl = canvas.getContext("webgl");
-
+      gl = canvas.getContext("webgl") ||
+        canvas.getContext("experimental-webgl") ||
+        canvas.getContext("webkit-3d") ||
+        canvas.getContext("moz-webgl");
       clear();
 
       loadShaderProgram();
